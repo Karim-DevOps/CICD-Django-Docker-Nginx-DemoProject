@@ -1,0 +1,65 @@
+version: '3.8'
+
+services:
+  db:
+    image: postgres:latest
+    container_name: docker-db
+    environment:
+      - POSTGRES_DB=pollingdb
+      - POSTGRES_USER=pollinguser
+      - POSTGRES_PASSWORD=password2024
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./bd/scripts-db:/docker-entrypoint-initdb.d
+    restart: always
+    networks:
+      - net_cicd_project
+
+  app:
+    build:
+      context: ./app
+      dockerfile: Dockerfile
+    container_name: docker-app
+    command: >
+      sh -c "python3 manage.py makemigrations &&
+             python3 manage.py migrate &&
+             python3 manage.py collectstatic --noinput &&
+             gunicorn --bind 0.0.0.0:8000 polling.wsgi:application"
+    volumes:
+      - static_data:/app/polling 
+    environment:
+      - DB_ENGINE=django.db.backends.postgresql
+      - DB_HOST=db
+      - DB_NAME=pollingdb
+      - DB_USER=pollinguser
+      - DB_PASSWORD=password2024
+      - DEBUG=True
+    restart: always
+    depends_on:
+      - db
+    networks:
+      - net_cicd_project
+
+  web:
+    image: nginx:latest
+    container_name: docker-web
+    volumes:
+      - ./web/conf.d:/etc/nginx/conf.d
+      - static_data:/app/polling
+    restart: always
+    ports:
+      - "80:80"
+    depends_on:
+      - app
+    networks:
+      - net_cicd_project
+
+networks:
+  net_cicd_project:
+    name: net_cicd_project
+
+volumes:
+  postgres_data:
+    name: postgres_data
+  static_data:
+    name: static_data

@@ -1,0 +1,7 @@
+Django
+gunicorn
+psycopg2-binary
+pillow
+asgiref
+pytz
+sqlparse
